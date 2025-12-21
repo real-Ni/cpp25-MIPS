@@ -3,42 +3,47 @@
 #include <random>
 #include <fstream>
 #include <cmath>
-
 #include "abp_sim.h"
 #include "cluster_analysis.h"
 
-void run_simulation(double Pe, std::mt19937& rng) {
-    int N = 500;
-    double a = 1.0;
-    double phi = 0.45; // Density high enough for MIPS
-    double Dr = 0.5;
-    double mu = 1.0;
-    double k = 100.0;
-    double dt = 0.001;
-    int STEPS = 200000;
-    
-    // Correct L for Area Fraction: phi = (N * PI * (a/2)^2) / L^2
-    double L = std::sqrt((N * M_PI * a * a / 4.0) / phi);
-    double v0 = Pe * a * Dr;
+void run_sim(double Pe, bool save_msd, bool save_snap, std::string fmax_file, std::mt19937& rng) {
 
-    std::vector<ABP> P(N);
-    std::normal_distribution<double> gauss(0.0, 1.0);
+    int N = 500; // number of particles
+    double a = 1.0; // diameter of one particle
+    double Dr = 0.5; // diffusion rate
+    double mu = 1.0; // mobility
+    double k = 200.0;
+    double h = 1e-3; // small chanhge
+
+    double phi = 0.55;
+
+    int STEPS = 300000; // until steady state
+    
+    double L = std::sqrt((N * M_PI * a * a / 4.0) / phi);
+    double v0 = Pe * a * Dr; // since persistence length = v0/aDr
+
+    std::vector<ABP> P(N); // vector of particles N
+    std::normal_distribution<double> gauss(0.0, 1.0); // normal gaussian distribution 
     std::uniform_real_distribution<double> pos_dist(0.0, L);
     std::uniform_real_distribution<double> ang_dist(0.0, 2*M_PI);
 
     for (int i = 0; i < N; i++) {
-        P[i].x = P[i].ux = pos_dist(rng);
+        P[i].x = P[i].ux = pos_dist(rng); // random positions and orientation for N particles
         P[i].y = P[i].uy = pos_dist(rng);
         P[i].th = ang_dist(rng);
     }
 
-    double fmax_sum = 0;
-    int samples = 0;
+    std::vector<double> initial_ux(N), initial_uy(N); // initial conditions for msd check
+    for(int i=0; i<N; i++) { initial_ux[i] = P[i].ux; initial_uy[i] = P[i].uy; }
 
-    for (int step = 0; step < STEPS; step++) {
-        std::vector<double> fx(N, 0.0), fy(N, 0.0);
+    std::ofstream msd_out, snap_out; // save data files for simulation later
+    if (save_msd) msd_out.open("msd_data.dat"); // msd check data
+    if (save_snap) snap_out.open("snapshot.dat"); // of all the particles
 
-        // Forces
+    double fmax_sum = 0; int samples = 0;
+
+    for (int step = 0; step < STEPS; step++) { // cluster check
+        std::vector<double> fx(N, 0.0), fy(N, 0.0); // vector of zero f
         for (int i = 0; i < N; i++) {
             for (int j = i + 1; j < N; j++) {
                 double dx = dx_pbc(P[i].x - P[j].x, L);
@@ -53,33 +58,35 @@ void run_simulation(double Pe, std::mt19937& rng) {
             }
         }
 
-        // Update
-        for (int i = 0; i < N; i++) {
-            P[i].th += std::sqrt(2.0 * Dr * dt) * gauss(rng);
-            double displacement_x = (v0 * std::cos(P[i].th) + mu * fx[i]) * dt;
-            double displacement_y = (v0 * std::sin(P[i].th) + mu * fy[i]) * dt;
-            
-            P[i].ux += displacement_x; // Unwrapped for MSD
-            P[i].uy += displacement_y;
-            P[i].x = pbc(P[i].x + displacement_x, L);
-            P[i].y = pbc(P[i].y + displacement_y, L);
+        for (int i = 0; i < N; i++) { 
+            P[i].th += std::sqrt(2.0 * Dr * h) * gauss(rng);
+            double dx_move = (v0 * std::cos(P[i].th) + mu * fx[i]) * h;
+            double dy_move = (v0 * std::sin(P[i].th) + mu * fy[i]) * h;
+            P[i].ux += dx_move; P[i].uy += dy_move;
+            P[i].x = pbc(P[i].x + dx_move, L);
+            P[i].y = pbc(P[i].y + dy_move, L);
         }
 
-        // Sample fmax in steady state
-        if (step > 100000 && step % 2000 == 0) {
-            fmax_sum += compute_fmax(P, L, a);
-            samples++;
+        if (save_msd && step % 1000 == 0) {
+            double msd = 0;
+            for(int i=0; i<N; i++) msd += std::pow(P[i].ux-initial_ux[i], 2) + std::pow(P[i].uy-initial_uy[i], 2);
+            msd_out << step * h << " " << msd / N << "\n";
         }
+        if (step > 150000 && step % 2000 == 0) { fmax_sum += compute_fmax(P, L, a); samples++; }
     }
-    std::cout << Pe << " " << fmax_sum / samples << std::endl;
+
+    std::ofstream f_out(fmax_file, std::ios::app);
+    f_out << Pe << " " << fmax_sum / samples << "\n";
+    if (save_snap) for(auto& p : P) snap_out << p.x << " " << p.y << "\n";
 }
 
 int main() {
     std::mt19937 rng(42);
-    std::cout << "Pe f_max" << std::endl;
+    std::ofstream f_out("fmax_vs_pe.dat"); f_out << "Pe fmax\n"; f_out.close();
     std::vector<double> Pe_list = {10, 30, 50, 80, 100, 150};
     for (double pe : Pe_list) {
-        run_simulation(pe, rng);
+        std::cout << "Simulating Pe=" << pe << "..." << std::endl;
+        run_sim(pe, (pe == 50), (pe == 150), "fmax_vs_pe.dat", rng);
     }
     return 0;
 }

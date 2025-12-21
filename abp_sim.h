@@ -10,6 +10,7 @@ using namespace std;
 struct ABP {
     double x, y; // position
     double th; // orientation
+    double ux, uy; // unwrapped
 }; // this structure defines a particle
 
 double pbc(double x, double L) {
@@ -24,18 +25,18 @@ double dx_pbc(double dx, double L) {
     return dx;
 } // boundaries period
 
-double run_abp(
-    int N,
-    double a,
-    double phi,
-    double Dr,
-    double mu,
-    double Pe,
-    int STEPS,
-    int burnin,
-    int sample_every,
-    std::mt19937& rng,
-    double (*compute_fmax)(const std::vector<ABP>&, double, double)
-); // function declared, used in main.cpp
+// double run_abp(
+//     int N,
+//     double a,
+//     double phi,
+//     double Dr,
+//     double mu,
+//     double Pe,
+//     int STEPS,
+//     int burnin,
+//     int sample_every,
+//     std::mt19937& rng,
+//     double (*compute_fmax)(const std::vector<ABP>&, double, double)
+// ); // function declared, used in main.cpp
 
 #endif

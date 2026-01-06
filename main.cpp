@@ -13,7 +13,7 @@ void run_sim(double Pe, bool save_msd, bool save_snap, std::string fmax_file, st
     double Dr = 0.5; // diffusion rate
     double mu = 1.0; // mobility
     double k = 200.0;
-    double h = 1e-3; // small chanhge
+    double h = 1e-3;  // small chanhge
 
     double phi = 0.55;
 

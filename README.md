@@ -41,23 +41,6 @@ This project explores minimal models of active matter using numerical simulation
 
 ---
 
-## Project Structure
-
-- `*.cpp` — Core C++ simulation codes  
-- `*.ipynb` — Data analysis and plotting notebooks  
-- `figures/` — Simulation snapshots and plots  
-- `report/` — Theory, derivations, and results write-up  
-
----
-
 ## Purpose
 
 This project serves as a computational study of nonequilibrium statistical physics, focusing on how collective behavior emerges in active systems. It is intended both as a learning exercise and as a foundation for further investigations into active matter, phase separation, and collective dynamics.
-
----
-
-## Notes
-
-- All simulations are performed with periodic boundary conditions  
-- Parameters are swept systematically to ensure fair comparisons  
-- Derivations of theoretical limits are included in the report  
